@@ -101,8 +101,20 @@ def day_symbol(dtype):
     if dtype == "strength": return "&#9632;"   # square = strength
     return "&mdash;"
 
+def build_html():
+    return dashboard_html()
+
+@app.route("/trmnl")
+def trmnl():
+    import json
+    html = dashboard_html()
+    return Response(json.dumps({"markup": html}), mimetype="application/json")
+
 @app.route("/")
 def dashboard():
+    return Response(dashboard_html(), mimetype="text/html")
+
+def dashboard_html():
     today_iso   = get_today_iso()
     today_label = get_today_label()
     phase_pct, phase_wk = get_phase_info()
@@ -414,7 +426,7 @@ def dashboard():
 </body>
 </html>"""
 
-    return Response(html, mimetype="text/html")
+    return html
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
