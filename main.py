@@ -232,70 +232,70 @@ def dashboard_html():
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@700&display=swap');
   * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{ width:800px; height:480px; overflow:hidden; background:#fff; color:#000; font-family:'IBM Plex Mono',monospace; font-size:12px; }}
-  .screen {{ width:800px; height:480px; display:grid; grid-template-rows:40px 1fr 50px; border:2px solid #000; }}
+  body {{ width:100%; height:480px; overflow:hidden; background:#fff; color:#000; font-family:'IBM Plex Mono',monospace; font-size:13px; }}
+  .screen {{ width:100%; height:480px; display:grid; grid-template-rows:40px 1fr 52px; border:2px solid #000; }}
   .header {{ display:grid; grid-template-columns:auto 1fr auto auto; align-items:center; gap:14px; padding:0 14px; border-bottom:2px solid #000; background:#000; color:#fff; }}
-  .strava-mark {{ font-size:11px; font-weight:700; letter-spacing:0.15em; display:flex; align-items:center; gap:5px; }}
-  .header-title {{ font-size:11px; font-weight:600; letter-spacing:0.04em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
-  .header-phase {{ font-size:9px; letter-spacing:0.1em; border:1px solid #fff; padding:1px 7px; text-transform:uppercase; white-space:nowrap; }}
-  .header-date {{ font-size:10px; letter-spacing:0.08em; opacity:0.7; white-space:nowrap; }}
-  .body {{ display:grid; grid-template-columns:296px 1px 210px 1px 1fr; overflow:hidden; }}
+  .strava-mark {{ font-size:12px; font-weight:700; letter-spacing:0.15em; display:flex; align-items:center; gap:5px; }}
+  .header-title {{ font-size:12px; font-weight:600; letter-spacing:0.04em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+  .header-phase {{ font-size:10px; letter-spacing:0.1em; border:1px solid #fff; padding:1px 7px; text-transform:uppercase; white-space:nowrap; }}
+  .header-date {{ font-size:11px; letter-spacing:0.08em; opacity:0.7; white-space:nowrap; }}
+  .body {{ display:grid; grid-template-columns:290px 1px 208px 1px 1fr; overflow:hidden; }}
   .divider-v {{ background:#000; width:1px; }}
   .divider-h {{ background:#000; height:1px; }}
-  .col-left {{ display:grid; grid-template-rows:1fr 1px 94px; overflow:hidden; }}
+  .col-left {{ display:grid; grid-template-rows:1fr 1px 96px; overflow:hidden; }}
   .today-panel {{ padding:11px 13px; display:flex; flex-direction:column; justify-content:space-between; overflow:hidden; }}
-  .today-eyebrow {{ font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:#666; margin-bottom:3px; }}
+  .today-eyebrow {{ font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:#666; margin-bottom:3px; }}
   .today-title {{ font-size:24px; font-weight:700; line-height:1.05; letter-spacing:-0.02em; font-family:'IBM Plex Sans',sans-serif; margin-bottom:5px; }}
-  .today-detail {{ font-size:11px; color:#333; line-height:1.55; }}
+  .today-detail {{ font-size:13px; color:#333; line-height:1.5; }}
   .today-tags {{ display:flex; gap:5px; margin-top:7px; flex-wrap:wrap; }}
-  .tag {{ font-size:9px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; border:1.5px solid #000; padding:2px 6px; }}
+  .tag {{ font-size:10px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; border:1.5px solid #000; padding:2px 6px; }}
   .tag-filled {{ background:#000; color:#fff; }}
   .tag-outline {{ background:#fff; color:#000; }}
-  .hr-alert {{ display:flex; align-items:center; gap:5px; margin-top:7px; font-size:11px; font-weight:700; }}
+  .hr-alert {{ display:flex; align-items:center; gap:5px; margin-top:7px; font-size:12px; font-weight:700; }}
   .week-strip {{ padding:7px 13px; display:flex; flex-direction:column; justify-content:center; gap:4px; }}
-  .week-strip-label {{ font-size:9px; letter-spacing:0.14em; text-transform:uppercase; color:#888; }}
+  .week-strip-label {{ font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:#888; }}
   .week-days {{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }}
   .week-day {{ display:flex; flex-direction:column; align-items:center; gap:2px; }}
-  .wd-name {{ font-size:8px; font-weight:700; letter-spacing:0.06em; color:#777; }}
+  .wd-name {{ font-size:9px; font-weight:700; letter-spacing:0.06em; color:#777; }}
   .wd-box {{ width:30px; height:30px; border:1.5px solid #bbb; display:flex; align-items:center; justify-content:center; font-size:15px; background:#fff; }}
   .wd-today {{ border-color:#000; border-width:2.5px; }}
   .wd-done {{ border-color:#000; background:#000; color:#fff; font-size:13px; }}
-  .wd-rest {{ border-color:#ddd; background:#f5f5f5; font-size:10px; color:#999; }}
-  .wd-dur {{ font-size:8px; color:#999; text-align:center; }}
+  .wd-rest {{ border-color:#ddd; background:#f5f5f5; font-size:11px; color:#999; }}
+  .wd-dur {{ font-size:9px; color:#999; text-align:center; }}
   .col-mid {{ padding:11px 13px; display:flex; flex-direction:column; }}
-  .col-label {{ font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:#777; margin-bottom:8px; display:flex; align-items:center; gap:6px; }}
+  .col-label {{ font-size:10px; letter-spacing:0.18em; text-transform:uppercase; color:#777; margin-bottom:8px; display:flex; align-items:center; gap:6px; }}
   .col-label::after {{ content:''; flex:1; height:1px; background:#ddd; }}
   .strava-stat {{ display:flex; flex-direction:column; padding:7px 0; border-bottom:1px solid #ebebeb; flex:1; justify-content:center; }}
   .strava-stat:last-child {{ border-bottom:none; }}
-  .ss-label {{ font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:#999; margin-bottom:1px; }}
-  .ss-value {{ font-size:21px; font-weight:700; letter-spacing:-0.02em; font-family:'IBM Plex Sans',sans-serif; line-height:1; }}
-  .ss-sub {{ font-size:9px; color:#777; margin-top:1px; }}
-  .col-right {{ padding:11px 13px; display:flex; flex-direction:column; gap:10px; overflow:hidden; }}
-  .vo2-num {{ font-size:34px; font-weight:700; font-family:'IBM Plex Sans',sans-serif; letter-spacing:-0.03em; line-height:1; }}
-  .vo2-unit {{ font-size:10px; color:#777; margin-left:3px; }}
+  .ss-label {{ font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:#999; margin-bottom:1px; }}
+  .ss-value {{ font-size:22px; font-weight:700; letter-spacing:-0.02em; font-family:'IBM Plex Sans',sans-serif; line-height:1; }}
+  .ss-sub {{ font-size:10px; color:#777; margin-top:1px; }}
+  .col-right {{ padding:11px 11px 11px 13px; display:flex; flex-direction:column; gap:10px; overflow:hidden; }}
+  .vo2-num {{ font-size:36px; font-weight:700; font-family:'IBM Plex Sans',sans-serif; letter-spacing:-0.03em; line-height:1; }}
+  .vo2-unit {{ font-size:11px; color:#777; margin-left:3px; }}
   .bar-track {{ height:7px; background:#eee; border:1px solid #ccc; margin-top:5px; position:relative; overflow:hidden; }}
   .bar-fill {{ height:100%; background:#000; }}
   .bar-target {{ position:absolute; right:0; top:-1px; bottom:-1px; width:2px; background:#555; }}
-  .bar-labels {{ display:flex; justify-content:space-between; margin-top:3px; font-size:8.5px; color:#999; }}
+  .bar-labels {{ display:flex; justify-content:space-between; margin-top:3px; font-size:10px; color:#999; }}
   .phase-bar-track {{ height:9px; background:#eee; border:1px solid #ccc; overflow:hidden; margin-top:5px; }}
   .phase-bar-fill {{ height:100%; background:#000; }}
-  .phase-meta {{ display:flex; justify-content:space-between; margin-top:3px; font-size:8.5px; color:#999; }}
-  .recent-item {{ display:flex; align-items:center; justify-content:space-between; padding:4px 0; border-bottom:1px solid #efefef; font-size:10px; }}
+  .phase-meta {{ display:flex; justify-content:space-between; margin-top:3px; font-size:10px; color:#999; }}
+  .recent-item {{ display:flex; align-items:center; justify-content:space-between; padding:4px 0; border-bottom:1px solid #efefef; font-size:11px; }}
   .recent-item:last-child {{ border-bottom:none; }}
-  .ri-left {{ display:flex; align-items:center; gap:5px; }}
-  .ri-icon {{ font-size:12px; }}
-  .ri-name {{ font-weight:600; font-size:10px; }}
-  .ri-sub {{ font-size:8.5px; color:#999; }}
-  .ri-right {{ text-align:right; }}
-  .ri-dist {{ font-weight:700; font-size:10px; }}
-  .ri-time {{ font-size:8.5px; color:#999; }}
+  .ri-left {{ display:flex; align-items:center; gap:5px; min-width:0; }}
+  .ri-icon {{ font-size:13px; flex-shrink:0; }}
+  .ri-name {{ font-weight:600; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+  .ri-sub {{ font-size:10px; color:#999; }}
+  .ri-right {{ text-align:right; flex-shrink:0; margin-left:6px; }}
+  .ri-dist {{ font-weight:700; font-size:11px; }}
+  .ri-time {{ font-size:10px; color:#999; }}
   .footer {{ display:grid; grid-template-columns:repeat(4,1fr); border-top:2px solid #000; }}
-  .footer-cell {{ display:flex; align-items:center; gap:7px; padding:0 12px; border-right:1px solid #ccc; }}
+  .footer-cell {{ display:flex; align-items:center; gap:7px; padding:0 11px; border-right:1px solid #ccc; overflow:hidden; }}
   .footer-cell:last-child {{ border-right:none; }}
-  .fc-icon {{ font-size:14px; flex-shrink:0; }}
-  .fc-label {{ font-size:8.5px; text-transform:uppercase; letter-spacing:0.1em; color:#888; margin-bottom:1px; }}
-  .fc-val {{ font-size:12px; font-weight:700; font-family:'IBM Plex Sans',sans-serif; line-height:1.1; }}
-  .fc-sub {{ font-size:8.5px; color:#777; }}
+  .fc-icon {{ font-size:15px; flex-shrink:0; }}
+  .fc-label {{ font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:#888; margin-bottom:1px; }}
+  .fc-val {{ font-size:13px; font-weight:700; font-family:'IBM Plex Sans',sans-serif; line-height:1.1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
+  .fc-sub {{ font-size:10px; color:#777; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }}
 </style>
 </head>
 <body>
