@@ -8,7 +8,7 @@ CLIENT_SECRET  = os.environ.get("STRAVA_CLIENT_SECRET")
 REFRESH_TOKEN  = os.environ.get("STRAVA_REFRESH_TOKEN")
 WEATHER_LAT    = os.environ.get("WEATHER_LAT", "34.85")
 WEATHER_LON    = os.environ.get("WEATHER_LON", "-82.39")
-WEEKLY_GOAL_MI = float(os.environ.get("WEEKLY_GOAL_MI", "40"))
+WEEKLY_GOAL_MI = float(os.environ.get("WEEKLY_GOAL_MI", "20"))
 
 PLAN = [
   {"iso":"2026-04-27","type":"run",     "title":"Recovery Run",         "detail":"30 min · nasal breathing","dur":"30m","hr":True},
@@ -445,13 +445,14 @@ def dashboard_html():
     upcoming = get_upcoming(today_iso, 3)
     up_cards = ""
     for i, u in enumerate(upcoming, 1):
-        ico    = workout_icon(u["type"], 20)
-        tag    = workout_zone_tag(u["type"], u["title"])
-        dur_n  = parse_dur(u["dur"])
-        dur_s  = f"{dur_n} min" if dur_n else u["dur"]
+        ico   = workout_icon(u["type"], 24)
+        tag   = workout_zone_tag(u["type"], u["title"])
+        dur_n = parse_dur(u["dur"])
+        dur_s = f"{dur_n} min" if dur_n else u["dur"]
         up_cards += f"""<div class="up-card">
   <div class="up-hdr"><span class="up-num">{i}</span><span class="up-date">{u['label']}</span></div>
-  <div class="up-body">{ico}<span class="up-name">{u['title']}</span></div>
+  <div class="up-icon">{ico}</div>
+  <div class="up-name">{u['title']}</div>
   <div class="up-foot">
     <span class="up-dur">{icon_stopwatch(13,15)} {dur_s}</span>
     <span class="up-tag">{tag}</span>
@@ -492,14 +493,14 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .col-run{{padding:9px 12px 6px;display:flex;flex-direction:column;overflow:hidden}}
 .s-lbl{{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#888;margin-bottom:4px}}
 .act-row{{display:flex;align-items:center;gap:8px;margin-bottom:6px}}
-.act-name{{font-size:16px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
+.act-name{{font-size:21px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
            line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .stats-grid{{display:grid;grid-template-columns:repeat(4,1fr);
              border:1px solid #000;flex-shrink:0;margin-bottom:6px}}
 .st{{padding:4px 6px;border-right:1px solid #000}}
 .st:last-child{{border-right:none}}
 .st-lbl{{font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#999;margin-bottom:1px}}
-.st-val{{font-size:19px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
+.st-val{{font-size:20px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
          line-height:1;letter-spacing:-.02em}}
 .st-unit{{font-size:9px;color:#777;display:block;margin-top:1px}}
 .elev-box{{overflow:hidden;flex-shrink:0}}
@@ -560,19 +561,19 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 
 /* Upcoming */
 .col-up{{display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden}}
-.up-card{{padding:8px 11px 7px;border-right:1px solid #ccc;
+.up-card{{padding:8px 11px 6px;border-right:1px solid #ccc;
           display:flex;flex-direction:column;overflow:hidden}}
 .up-card:last-child{{border-right:none}}
-.up-hdr{{display:flex;align-items:center;gap:6px;margin-bottom:5px}}
+.up-hdr{{display:flex;align-items:center;gap:6px;margin-bottom:6px}}
 .up-num{{width:18px;height:18px;background:#000;color:#fff;font-size:10px;
          font-weight:700;display:flex;align-items:center;justify-content:center;
          flex-shrink:0;font-family:'IBM Plex Mono',monospace}}
-.up-date{{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:#888}}
-.up-body{{display:flex;align-items:center;gap:7px;flex:1;min-height:0;margin-bottom:4px}}
-.up-name{{font-size:13px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
-          line-height:1.2;letter-spacing:-.01em}}
+.up-date{{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#333}}
+.up-icon{{margin-bottom:4px}}
+.up-name{{font-size:14px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
+          line-height:1.2;letter-spacing:-.01em;flex:1;margin-bottom:5px}}
 .up-foot{{display:flex;align-items:center;justify-content:space-between;gap:4px}}
-.up-dur{{display:flex;align-items:center;gap:4px;font-size:9px;color:#666;
+.up-dur{{display:flex;align-items:center;gap:4px;font-size:9px;color:#555;
          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .up-tag{{display:inline-block;font-size:8px;font-weight:700;letter-spacing:.08em;
          background:#000;color:#fff;padding:2px 5px;text-transform:uppercase;
