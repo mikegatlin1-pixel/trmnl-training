@@ -407,9 +407,13 @@ def dashboard_html():
         ytd_mi, ytd_cnt, ytd_hr, ytd_ft, ytd_pace = "—", "—", "—", "—", "—"
         vo2 = 0; last_run = None; week_mi = 0.0
 
-    wm_pct    = min(100, round(week_mi / WEEKLY_GOAL_MI * 100)) if WEEKLY_GOAL_MI > 0 else 0
-    goal_int  = int(WEEKLY_GOAL_MI)
-    goal_half = int(WEEKLY_GOAL_MI / 2)
+    wm_pct      = min(100, round(week_mi / WEEKLY_GOAL_MI * 100)) if WEEKLY_GOAL_MI > 0 else 0
+    goal_int    = int(WEEKLY_GOAL_MI)
+    wm_tick_labels = [str(int(i * WEEKLY_GOAL_MI / 4)) for i in range(4)] + [f"{goal_int} mi"]
+    wm_ticks_html  = "".join(
+        f'<div class="wm-tick"><span class="wm-tick-lbl">{lbl}</span></div>'
+        for lbl in wm_tick_labels
+    )
 
     # Last run
     ELEV_W, ELEV_H = 268, 88
@@ -472,7 +476,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 
 /* Screen grid: header | main | weekly-mi | info | ytd */
 .screen{{width:100%;height:480px;display:grid;
-         grid-template-rows:42px 1fr 80px 108px 44px;
+         grid-template-rows:42px 1fr 80px 118px 44px;
          border:2px solid #000;overflow:hidden}}
 .dv{{width:1px;background:#000;align-self:stretch}}
 
@@ -539,18 +543,21 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .wm-num{{font-size:28px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;letter-spacing:-.03em}}
 .wm-goal{{font-size:13px;color:#555;font-family:'IBM Plex Sans',sans-serif}}
 .wm-pct{{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-top:3px}}
-.wm-right{{padding:10px 16px 8px;display:flex;flex-direction:column;justify-content:center}}
-.wm-bar{{display:flex;height:22px;border:1.5px solid #000;overflow:hidden;margin-bottom:4px}}
+.wm-right{{padding:10px 16px 6px;display:flex;flex-direction:column;justify-content:center}}
+.wm-bar{{display:flex;height:24px;border:1.5px solid #000;overflow:hidden;margin-bottom:3px}}
 .wm-fill{{background:#000;height:100%}}
 .wm-remain{{flex:1;height:100%;
   background:repeating-linear-gradient(-45deg,#aaa,#aaa 1px,#ddd 1px,#ddd 5px)}}
-.wm-scale{{display:flex;justify-content:space-between;font-size:9px;color:#888}}
+.wm-scale{{display:flex;justify-content:space-between}}
+.wm-tick{{display:flex;flex-direction:column;align-items:center;gap:1px}}
+.wm-tick::before{{content:'';width:1px;height:5px;background:#999;display:block}}
+.wm-tick-lbl{{font-size:8px;color:#888}}
 
 /* ── INFO ROW ── */
 .info-row{{display:grid;grid-template-columns:190px 1px 1fr;overflow:hidden}}
 
 /* Weather */
-.col-wx{{padding:10px 14px;display:flex;flex-direction:column;justify-content:center}}
+.col-wx{{padding:7px 14px 8px;display:flex;flex-direction:column;justify-content:flex-start}}
 .wx-top{{display:flex;align-items:center;gap:8px;margin-bottom:4px}}
 .wx-temp{{font-size:28px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
           letter-spacing:-.03em;line-height:1}}
@@ -560,8 +567,11 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .wx-wind-row{{display:flex;align-items:center;gap:6px;font-size:10px;color:#555;margin-top:2px}}
 
 /* Upcoming */
-.col-up{{display:grid;grid-template-columns:repeat(3,1fr);overflow:hidden}}
-.up-card{{padding:8px 11px 6px;border-right:1px solid #ccc;
+.col-up-wrap{{display:flex;flex-direction:column;overflow:hidden}}
+.up-head{{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#888;
+          padding:5px 11px 4px;border-bottom:1px solid #ccc;flex-shrink:0}}
+.col-up{{display:grid;grid-template-columns:repeat(3,1fr);flex:1;overflow:hidden}}
+.up-card{{padding:6px 11px 5px;border-right:1px solid #999;
           display:flex;flex-direction:column;overflow:hidden}}
 .up-card:last-child{{border-right:none}}
 .up-hdr{{display:flex;align-items:center;gap:6px;margin-bottom:6px}}
@@ -570,8 +580,8 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
          flex-shrink:0;font-family:'IBM Plex Mono',monospace}}
 .up-date{{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#333}}
 .up-icon{{margin-bottom:4px}}
-.up-name{{font-size:14px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
-          line-height:1.2;letter-spacing:-.01em;flex:1;margin-bottom:5px}}
+.up-name{{font-size:16px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
+          line-height:1.2;letter-spacing:-.01em;flex:1;margin-bottom:4px}}
 .up-foot{{display:flex;align-items:center;justify-content:space-between;gap:4px}}
 .up-dur{{display:flex;align-items:center;gap:4px;font-size:9px;color:#555;
          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
@@ -642,6 +652,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
   <!-- COACH'S TIP -->
   <div class="col-coach">
     <div class="s-lbl">Coach&#8217;s Tip</div>
+    <div class="dsep"></div>
     <div class="coach-body">
       {icon_clipboard(20, 24)}
       <span class="coach-text">{coach_tip}</span>
@@ -674,9 +685,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
       <div class="wm-fill" style="width:{wm_pct}%"></div>
       <div class="wm-remain"></div>
     </div>
-    <div class="wm-scale">
-      <span>0 mi</span><span>{goal_half} mi</span><span>{goal_int} mi</span>
-    </div>
+    <div class="wm-scale">{wm_ticks_html}</div>
   </div>
 </div>
 
@@ -684,6 +693,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 <div class="info-row">
 
   <div class="col-wx">
+    <div class="s-lbl" style="margin-bottom:5px">Weather</div>
     <div class="wx-top">{wx_svg}<span class="wx-temp">{wx_temp}</span></div>
     <div class="wx-cond">{wx_cond}</div>
     <div class="wx-detail">{wx_rain}</div>
@@ -692,7 +702,10 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 
   <div class="dv"></div>
 
-  <div class="col-up">{up_cards}</div>
+  <div class="col-up-wrap">
+    <div class="up-head">Upcoming Workouts</div>
+    <div class="col-up">{up_cards}</div>
+  </div>
 
 </div>
 
