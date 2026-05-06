@@ -371,13 +371,13 @@ def dashboard_html():
     t_icon_svg = workout_icon(t_type, 22)
 
     zone_map = {
-        "run":      "AEROBIC BASE &bull; ZONE 2",
+        "run":      "AEROBIC BASE · ZONE 2",
         "social":   "OPEN EFFORT",
         "strength": "STRENGTH FOCUS",
         "rest":     "FULL REST",
     }
     t_zone = zone_map.get(t_type, "")
-    hr_note = "HR cap 138 bpm &bull; walk at 139" if t_hr else ""
+    hr_note = "HR cap 138 bpm · walk at 139" if t_hr else ""
 
     # Coach's tip
     tip_data    = COACH_TIPS.get(t_type, COACH_TIPS["rest"])
@@ -469,7 +469,7 @@ def dashboard_html():
 <meta charset="UTF-8">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;700&display=swap');
-*{{margin:0;padding:0;box-sizing:border-box}}
+*{{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 body{{width:100%;height:480px;overflow:hidden;background:#fff;color:#000;
      font-family:'IBM Plex Mono',monospace;font-size:11px}}
 svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
@@ -481,8 +481,8 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .dv{{width:1px;background:#000;align-self:stretch}}
 
 /* ── HEADER ── */
-.hdr{{background:#000;color:#fff;display:flex;align-items:center;
-      padding:0 16px;gap:12px}}
+.hdr{{background:#000 !important;color:#fff !important;display:flex;align-items:center;
+      padding:0 16px;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 .hdr-title{{font-size:18px;font-weight:700;letter-spacing:0.05em;
             text-transform:uppercase;font-family:'IBM Plex Sans',sans-serif;flex:1}}
 .hdr-date{{font-size:11px;letter-spacing:0.06em;opacity:.85;white-space:nowrap}}
