@@ -277,9 +277,9 @@ def elevation_chart_svg(altitude, distance, width, height):
         return (f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
                 f'xmlns="http://www.w3.org/2000/svg">'
                 f'<line x1="36" y1="{height-4}" x2="{width-2}" y2="{height-4}" '
-                f'stroke="#ccc" stroke-width="1"/>'
+                f'stroke="#000" stroke-width="1"/>'
                 f'<text x="{(width+36)//2}" y="{height//2+4}" text-anchor="middle" '
-                f'font-size="9" fill="#bbb" font-family="IBM Plex Mono,monospace">no elevation data</text>'
+                f'font-size="9" fill="#000" font-family="IBM Plex Mono,monospace">no elevation data</text>'
                 f'</svg>')
 
     alt_ft = [a * 3.28084 for a in altitude]
@@ -328,14 +328,14 @@ def elevation_chart_svg(altitude, distance, width, height):
 
     parts = [f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
              f'xmlns="http://www.w3.org/2000/svg">',
-             f'<path d="{path}" fill="#ddd" stroke="#444" stroke-width="1.2" stroke-linejoin="round"/>']
+             f'<path d="{path}" fill="#ccc" stroke="#000" stroke-width="1.2" stroke-linejoin="round"/>']
 
     for tick in ticks:
         yp  = py + ch - (tick - ticks[0]) / span * ch
         lbl = f"{int(tick):,} ft"
         parts.append(f'<line x1="{y_ax}" y1="{yp:.1f}" x2="{y_ax+cw}" y2="{yp:.1f}" '
-                     f'stroke="#666" stroke-width="0.8" stroke-dasharray="3,2"/>')
-        parts.append(f'<text x="{y_ax-3}" y="{yp+3.5:.1f}" font-size="8" fill="#333" '
+                     f'stroke="#000" stroke-width="0.6" stroke-dasharray="2,3"/>')
+        parts.append(f'<text x="{y_ax-3}" y="{yp+3.5:.1f}" font-size="8" fill="#000" '
                      f'text-anchor="end" font-family="IBM Plex Mono,monospace">{lbl}</text>')
     parts.append('</svg>')
     return ''.join(parts)
@@ -422,7 +422,7 @@ def dashboard_html():
     goal_int    = int(WEEKLY_GOAL_MI)
     wm_tick_labels = [str(int(i * WEEKLY_GOAL_MI / 4)) for i in range(4)] + [f"{goal_int} mi"]
     wm_ticks_html  = "".join(
-        f'<div class="wm-tick"><svg width="1" height="5" viewBox="0 0 1 5" xmlns="http://www.w3.org/2000/svg"><rect width="1" height="5" fill="#555"/></svg><span class="wm-tick-lbl">{lbl}</span></div>'
+        f'<div class="wm-tick"><svg width="1" height="5" viewBox="0 0 1 5" xmlns="http://www.w3.org/2000/svg"><rect width="1" height="5" fill="#000"/></svg><span class="wm-tick-lbl">{lbl}</span></div>'
         for lbl in wm_tick_labels
     )
 
@@ -528,10 +528,10 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
              border:1px solid #000;flex-shrink:0;margin-bottom:6px}}
 .st{{padding:4px 6px;border-right:1px solid #000}}
 .st:last-child{{border-right:none}}
-.st-lbl{{font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#555;margin-bottom:1px}}
+.st-lbl{{font-size:7px;letter-spacing:.12em;text-transform:uppercase;color:#000;margin-bottom:1px}}
 .st-val{{font-size:20px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
          line-height:1;letter-spacing:-.02em}}
-.st-unit{{font-size:9px;color:#444;display:block;margin-top:1px}}
+.st-unit{{font-size:9px;color:#000;display:block;margin-top:1px}}
 .elev-box{{overflow:hidden;flex-shrink:0}}
 
 /* Today */
@@ -539,24 +539,24 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .today-title{{display:flex;align-items:flex-start;gap:7px;margin-bottom:4px}}
 .today-name{{font-size:17px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
              line-height:1.15;letter-spacing:-.02em}}
-.dsep{{border-top:1px solid #999;margin:5px 0}}
+.dsep{{border-top:1px solid #000;margin:5px 0}}
 .dur-row{{display:flex;align-items:baseline;gap:4px;margin-bottom:3px}}
 .dur-num{{font-size:44px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
           line-height:1;letter-spacing:-.04em}}
-.dur-unit{{font-size:13px;color:#555;font-family:'IBM Plex Sans',sans-serif}}
-.t-zone{{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#444;margin-bottom:5px}}
-.t-detail{{font-size:10px;color:#444;line-height:1.55;flex:1}}
-.t-hr{{font-size:9px;color:#333;margin-top:4px}}
+.dur-unit{{font-size:13px;color:#000;font-family:'IBM Plex Sans',sans-serif}}
+.t-zone{{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#000;margin-bottom:5px}}
+.t-detail{{font-size:10px;color:#000;line-height:1.55;flex:1}}
+.t-hr{{font-size:9px;color:#000;margin-top:4px}}
 .t-tag{{display:inline-block;margin-top:5px}}
 
 /* Coach's Tip */
 .col-coach{{padding:9px 12px 7px;display:flex;flex-direction:column;overflow:hidden}}
 .coach-body{{display:flex;gap:9px;align-items:flex-start;flex:1;min-height:0;margin-bottom:4px}}
-.coach-text{{font-size:11px;color:#222;line-height:1.55}}
+.coach-text{{font-size:11px;color:#000;line-height:1.55}}
 .focus-row{{display:flex;align-items:flex-end;justify-content:space-between;gap:4px}}
 .focus-title{{font-size:13px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
               letter-spacing:-.01em;margin-bottom:2px}}
-.focus-sub{{font-size:10px;color:#333}}
+.focus-sub{{font-size:10px;color:#000}}
 
 /* ── WEEKLY MILEAGE ── */
 .wm-row{{display:grid;grid-template-columns:210px 1fr;
@@ -565,8 +565,8 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .wm-lbl{{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#000;font-weight:700;margin-bottom:3px}}
 .wm-nums{{display:flex;align-items:baseline;gap:4px;line-height:1}}
 .wm-num{{font-size:28px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;letter-spacing:-.03em}}
-.wm-goal{{font-size:13px;color:#333;font-family:'IBM Plex Sans',sans-serif}}
-.wm-pct{{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#444;margin-top:3px}}
+.wm-goal{{font-size:13px;color:#000;font-family:'IBM Plex Sans',sans-serif}}
+.wm-pct{{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#000;margin-top:3px}}
 .wm-right{{padding:10px 16px 6px;display:flex;flex-direction:column;justify-content:center}}
 .wm-bar{{display:flex;height:24px;border:1.5px solid #000;overflow:hidden;margin-bottom:3px}}
 .wm-fill{{height:100%}}
@@ -585,15 +585,15 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
           letter-spacing:-.03em;line-height:1}}
 .wx-cond{{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
           margin-bottom:4px}}
-.wx-detail{{font-size:10px;color:#333;line-height:1.7}}
-.wx-wind-row{{display:flex;align-items:center;gap:6px;font-size:10px;color:#333;margin-top:2px}}
+.wx-detail{{font-size:10px;color:#000;line-height:1.7}}
+.wx-wind-row{{display:flex;align-items:center;gap:6px;font-size:10px;color:#000;margin-top:2px}}
 
 /* Upcoming */
 .col-up-wrap{{display:flex;flex-direction:column;overflow:hidden}}
 .up-head{{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#000;font-weight:700;
-          padding:5px 11px 4px;border-bottom:1px solid #999;flex-shrink:0}}
+          padding:5px 11px 4px;border-bottom:1px solid #000;flex-shrink:0}}
 .col-up{{display:grid;grid-template-columns:repeat(3,1fr);flex:1;overflow:hidden}}
-.up-card{{padding:6px 11px 5px;border-right:1px solid #999;
+.up-card{{padding:6px 11px 5px;border-right:1px solid #000;
           display:flex;flex-direction:column;overflow:hidden}}
 .up-card:last-child{{border-right:none}}
 .up-hdr{{display:flex;align-items:center;gap:6px;margin-bottom:6px}}
@@ -603,7 +603,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .up-name{{font-size:16px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
           line-height:1.2;letter-spacing:-.01em;flex:1;margin-bottom:4px}}
 .up-foot{{display:flex;align-items:center;justify-content:space-between;gap:4px}}
-.up-dur{{display:flex;align-items:center;gap:4px;font-size:9px;color:#333;
+.up-dur{{display:flex;align-items:center;gap:4px;font-size:9px;color:#000;
          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .up-tag{{line-height:0;flex-shrink:0}}
 
@@ -611,11 +611,11 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .ytd{{position:relative;display:grid;grid-template-columns:repeat(5,1fr);color:#fff}}
 .yt{{position:relative;z-index:1;display:flex;flex-direction:column;
      justify-content:center;align-items:center;
-     border-right:1px solid #333;padding:0 4px}}
+     border-right:1px solid #fff;padding:0 4px}}
 .yt:last-child{{border-right:none}}
-.yt-lbl{{font-size:7px;letter-spacing:.14em;color:#888;text-transform:uppercase;margin-bottom:1px}}
+.yt-lbl{{font-size:7px;letter-spacing:.14em;color:#fff;text-transform:uppercase;margin-bottom:1px}}
 .yt-val{{font-size:14px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;line-height:1}}
-.yt-sub{{font-size:8px;color:#666;margin-top:1px}}
+.yt-sub{{font-size:8px;color:#fff;margin-top:1px}}
 </style>
 </head>
 <body>
@@ -706,7 +706,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
   <div class="wm-right">
     <div class="wm-bar">
       <svg viewBox="0 0 400 24" width="{wm_pct}%" height="24" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="24" fill="#000"/></svg>
-      <svg class="wm-remain" viewBox="0 0 100 24" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#888" stroke-width="2"/></pattern></defs><rect width="100" height="24" fill="url(#hatch)"/></svg>
+      <svg class="wm-remain" viewBox="0 0 100 24" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#000" stroke-width="1.5"/></pattern></defs><rect width="100" height="24" fill="url(#hatch)"/></svg>
     </div>
     <div class="wm-scale">{wm_ticks_html}</div>
   </div>
