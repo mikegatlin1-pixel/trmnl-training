@@ -50,7 +50,6 @@ def _svg(body, w, h, vw, vh, sw=1.6, extra=""):
             f'{body}</svg>')
 
 def icon_shoe(w=22, h=16):
-    # simple side-view running shoe
     body = ('<path d="M2 12L2 9C2 7 4 6 6 6L12 6L14 3C15 2 17 2 18 3L19 6'
             'L21 6C23 6 24 8 24 10L24 11L22 12Z"/>'
             '<line x1="7" y1="6" x2="7" y2="4"/>')
@@ -341,6 +340,18 @@ def elevation_chart_svg(altitude, distance, width, height):
     parts.append('</svg>')
     return ''.join(parts)
 
+# ── SVG black fill helper (bypasses CSS background-color in headless renderers) ──
+
+def svg_black_fill(w=800, h=44):
+    """Returns an absolutely-positioned SVG rect that paints a solid black background.
+    Must be the first child of a position:relative container."""
+    return (f'<svg style="position:absolute;top:0;left:0;width:100%;height:100%;'
+            f'z-index:0;display:block;overflow:hidden;" '
+            f'viewBox="0 0 {w} {h}" preserveAspectRatio="none" '
+            f'xmlns="http://www.w3.org/2000/svg">'
+            f'<rect width="{w}" height="{h}" fill="#000000"/>'
+            f'</svg>')
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/trmnl")
@@ -371,13 +382,13 @@ def dashboard_html():
     t_icon_svg = workout_icon(t_type, 22)
 
     zone_map = {
-        "run":      "AEROBIC BASE · ZONE 2",
+        "run":      "AEROBIC BASE &bull; ZONE 2",
         "social":   "OPEN EFFORT",
         "strength": "STRENGTH FOCUS",
         "rest":     "FULL REST",
     }
     t_zone = zone_map.get(t_type, "")
-    hr_note = "HR cap 138 bpm · walk at 139" if t_hr else ""
+    hr_note = "HR cap 138 bpm &bull; walk at 139" if t_hr else ""
 
     # Coach's tip
     tip_data    = COACH_TIPS.get(t_type, COACH_TIPS["rest"])
@@ -454,14 +465,25 @@ def dashboard_html():
         dur_n = parse_dur(u["dur"])
         dur_s = f"{dur_n} min" if dur_n else u["dur"]
         up_cards += f"""<div class="up-card">
-  <div class="up-hdr"><span class="up-num">{i}</span><span class="up-date">{u['label']}</span></div>
+  <div class="up-hdr">
+    <span class="up-num">
+      <svg viewBox="0 0 18 18" width="18" height="18" xmlns="http://www.w3.org/2000/svg"><rect width="18" height="18" fill="#000"/><text x="9" y="13" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" font-family="IBM Plex Mono,monospace">{i}</text></svg>
+    </span>
+    <span class="up-date">{u['label']}</span>
+  </div>
   <div class="up-icon">{ico}</div>
   <div class="up-name">{u['title']}</div>
   <div class="up-foot">
     <span class="up-dur">{icon_stopwatch(13,15)} {dur_s}</span>
-    <span class="up-tag">{tag}</span>
+    <span class="up-tag">
+      <svg viewBox="0 0 60 16" width="60" height="16" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="60" height="16" fill="#000"/><text x="30" y="12" text-anchor="middle" font-size="8" font-weight="700" fill="#fff" font-family="IBM Plex Mono,monospace">{tag}</text></svg>
+    </span>
   </div>
 </div>"""
+
+    # Black fill SVGs for header and YTD
+    hdr_bg  = svg_black_fill(800, 42)
+    ytd_bg  = svg_black_fill(800, 44)
 
     return f"""<!DOCTYPE html>
 <html>
@@ -469,25 +491,28 @@ def dashboard_html():
 <meta charset="UTF-8">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=IBM+Plex+Sans:wght@400;700&display=swap');
-*{{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+*{{margin:0;padding:0;box-sizing:border-box}}
 body{{width:100%;height:480px;overflow:hidden;background:#fff;color:#000;
      font-family:'IBM Plex Mono',monospace;font-size:11px}}
 svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 
-/* Screen grid: header | main | weekly-mi | info | ytd */
+/* Screen grid */
 .screen{{width:100%;height:480px;display:grid;
          grid-template-rows:42px 1fr 80px 118px 44px;
          border:2px solid #000;overflow:hidden}}
 .dv{{width:1px;background:#000;align-self:stretch}}
 
-/* ── HEADER ── */
-.hdr{{background:#000 !important;color:#fff !important;display:flex;align-items:center;
-      padding:0 16px;gap:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-.hdr-title{{font-size:18px;font-weight:700;letter-spacing:0.05em;
-            text-transform:uppercase;font-family:'IBM Plex Sans',sans-serif;flex:1}}
-.hdr-date{{font-size:11px;letter-spacing:0.06em;opacity:.85;white-space:nowrap}}
-.hdr-week{{font-size:10px;letter-spacing:0.12em;border:1.5px solid #fff;
-           padding:3px 10px;text-transform:uppercase;white-space:nowrap}}
+/* ── HEADER — black via SVG rect, not CSS background ── */
+.hdr{{position:relative;color:#fff;display:flex;align-items:center;
+      padding:0 16px;gap:12px}}
+.hdr-title{{position:relative;z-index:1;font-size:18px;font-weight:700;
+            letter-spacing:0.05em;text-transform:uppercase;
+            font-family:'IBM Plex Sans',sans-serif;flex:1}}
+.hdr-date{{position:relative;z-index:1;font-size:11px;letter-spacing:0.06em;
+           opacity:.85;white-space:nowrap}}
+.hdr-week{{position:relative;z-index:1;font-size:10px;letter-spacing:0.12em;
+           border:1.5px solid #fff;padding:3px 10px;
+           text-transform:uppercase;white-space:nowrap}}
 
 /* ── MAIN (3 cols) ── */
 .main{{display:grid;grid-template-columns:310px 1px 210px 1px 1fr;
@@ -522,8 +547,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .t-zone{{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#777;margin-bottom:5px}}
 .t-detail{{font-size:10px;color:#444;line-height:1.55;flex:1}}
 .t-hr{{font-size:9px;color:#333;margin-top:4px}}
-.t-tag{{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.1em;
-        text-transform:uppercase;background:#000;color:#fff;padding:2px 7px;margin-top:5px}}
+.t-tag{{display:inline-block;margin-top:5px}}
 
 /* Coach's Tip */
 .col-coach{{padding:9px 12px 7px;display:flex;flex-direction:column;overflow:hidden}}
@@ -545,7 +569,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .wm-pct{{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-top:3px}}
 .wm-right{{padding:10px 16px 6px;display:flex;flex-direction:column;justify-content:center}}
 .wm-bar{{display:flex;height:24px;border:1.5px solid #000;overflow:hidden;margin-bottom:3px}}
-.wm-fill{{background:#000;height:100%}}
+.wm-fill{{height:100%}}
 .wm-remain{{flex:1;height:100%;
   background:repeating-linear-gradient(-45deg,#aaa,#aaa 1px,#ddd 1px,#ddd 5px)}}
 .wm-scale{{display:flex;justify-content:space-between}}
@@ -575,9 +599,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
           display:flex;flex-direction:column;overflow:hidden}}
 .up-card:last-child{{border-right:none}}
 .up-hdr{{display:flex;align-items:center;gap:6px;margin-bottom:6px}}
-.up-num{{width:18px;height:18px;background:#000;color:#fff;font-size:10px;
-         font-weight:700;display:flex;align-items:center;justify-content:center;
-         flex-shrink:0;font-family:'IBM Plex Mono',monospace}}
+.up-num{{flex-shrink:0;line-height:0}}
 .up-date{{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#333}}
 .up-icon{{margin-bottom:4px}}
 .up-name{{font-size:16px;font-weight:700;font-family:'IBM Plex Sans',sans-serif;
@@ -585,13 +607,12 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .up-foot{{display:flex;align-items:center;justify-content:space-between;gap:4px}}
 .up-dur{{display:flex;align-items:center;gap:4px;font-size:9px;color:#555;
          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.up-tag{{display:inline-block;font-size:8px;font-weight:700;letter-spacing:.08em;
-         background:#000;color:#fff;padding:2px 5px;text-transform:uppercase;
-         white-space:nowrap;flex-shrink:0}}
+.up-tag{{line-height:0;flex-shrink:0}}
 
-/* ── YTD BANNER ── */
-.ytd{{display:grid;grid-template-columns:repeat(5,1fr);background:#000;color:#fff}}
-.yt{{display:flex;flex-direction:column;justify-content:center;align-items:center;
+/* ── YTD BANNER — black via SVG rect, not CSS background ── */
+.ytd{{position:relative;display:grid;grid-template-columns:repeat(5,1fr);color:#fff}}
+.yt{{position:relative;z-index:1;display:flex;flex-direction:column;
+     justify-content:center;align-items:center;
      border-right:1px solid #333;padding:0 4px}}
 .yt:last-child{{border-right:none}}
 .yt-lbl{{font-size:7px;letter-spacing:.14em;color:#888;text-transform:uppercase;margin-bottom:1px}}
@@ -602,7 +623,9 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 <body>
 <div class="screen">
 
+<!-- HEADER: black background via inline SVG rect (CSS background-color stripped by e-ink renderer) -->
 <div class="hdr">
+  {hdr_bg}
   <div class="hdr-title">Training Snapshot</div>
   <div class="hdr-date">{today_label}</div>
   <div class="hdr-week">Week {phase_wk} / 4</div>
@@ -644,7 +667,9 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
     <div class="dsep"></div>
     <div class="t-detail">{t_icon_svg} {t_detail}</div>
     {f'<div class="t-hr">{hr_note}</div>' if hr_note else ''}
-    <div class="t-tag">{t_type.upper()}</div>
+    <div class="t-tag">
+      <svg viewBox="0 0 80 18" width="80" height="18" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="18" fill="#000"/><text x="40" y="13" text-anchor="middle" font-size="9" font-weight="700" fill="#fff" font-family="IBM Plex Mono,monospace">{t_type.upper()}</text></svg>
+    </div>
   </div>
 
   <div class="dv"></div>
@@ -682,7 +707,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
   </div>
   <div class="wm-right">
     <div class="wm-bar">
-      <div class="wm-fill" style="width:{wm_pct}%"></div>
+      <svg viewBox="0 0 400 24" width="{wm_pct}%" height="24" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="24" fill="#000"/></svg>
       <div class="wm-remain"></div>
     </div>
     <div class="wm-scale">{wm_ticks_html}</div>
@@ -709,8 +734,9 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 
 </div>
 
-<!-- YTD BANNER -->
+<!-- YTD BANNER: black background via inline SVG rect -->
 <div class="ytd">
+  {ytd_bg}
   <div class="yt"><div class="yt-lbl">Distance YTD</div><div class="yt-val">{ytd_mi} mi</div><div class="yt-sub">{ytd_cnt} runs</div></div>
   <div class="yt"><div class="yt-lbl">Time YTD</div><div class="yt-val">{ytd_hr} hr</div><div class="yt-sub">moving time</div></div>
   <div class="yt"><div class="yt-lbl">Avg Pace</div><div class="yt-val">{ytd_pace}</div><div class="yt-sub">min / mile</div></div>
