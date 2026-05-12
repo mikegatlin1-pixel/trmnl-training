@@ -26,12 +26,13 @@ PLAN = [
   {"iso":"2026-05-09","type":"run",     "title":"Long Run",             "detail":"60-90 min easy · ankle warm-up","dur":"90m","hr":True},
   {"iso":"2026-05-10","type":"strength","title":"Full Body A",           "detail":"Squat · OHP · Row · Sandbag","dur":"60m","hr":False},
   {"iso":"2026-05-11","type":"run",     "title":"Recovery Run",         "detail":"30 min · nasal breathing","dur":"30m","hr":True},
-  {"iso":"2026-05-12","type":"social",  "title":"Upstate RC Social Run","detail":"Open HR · enjoy the group","dur":"~45m","hr":False},
-  {"iso":"2026-05-13","type":"strength","title":"Full Body B",           "detail":"Deadlift · Bench · Pull-ups · Assault Bike","dur":"60m","hr":False},
-  {"iso":"2026-05-14","type":"run",     "title":"Base Run",             "detail":"30 min · strict aerobic volume","dur":"30m","hr":True},
-  {"iso":"2026-05-15","type":"rest",    "title":"Rest & Review",        "detail":"Full rest · review the week","dur":"—","hr":False},
-  {"iso":"2026-05-16","type":"run",     "title":"Long Run",             "detail":"60-90 min easy · ankle warm-up","dur":"90m","hr":True},
-  {"iso":"2026-05-17","type":"strength","title":"Full Body A",           "detail":"Squat · OHP · Row · Sandbag","dur":"60m","hr":False},
+  {"iso":"2026-05-12","type":"social",  "title":"Social Run",           "detail":"Upstate RC · Open HR · push if you feel good","dur":"~45m","hr":False},
+  {"iso":"2026-05-13","type":"strength","title":"Strength B",            "detail":"Deadlift Focus · 5-10 min ankle warm-up first","dur":"60m","hr":False},
+  {"iso":"2026-05-14","type":"run",     "title":"Base Run",             "detail":"30 min strict cap · parenting duties · 138 bpm limit","dur":"30m","hr":True},
+  {"iso":"2026-05-15","type":"rest",    "title":"Rest Day",             "detail":"Full recovery · review the week's stats","dur":"—","hr":False},
+  {"iso":"2026-05-16","type":"run",     "title":"Long Run",             "detail":"60-90 min · 10 min ankle/knee warm-up · 138 bpm limit","dur":"90m","hr":True},
+  {"iso":"2026-05-17","type":"strength","title":"Strength A",            "detail":"Squat Focus · 5-10 min ankle warm-up first","dur":"60m","hr":False},
+  {"iso":"2026-05-18","type":"run",     "title":"Recovery Run",         "detail":"30 min · 138 bpm limit · nasal breathing","dur":"30m","hr":True},
 ]
 
 COACH_TIPS = {
@@ -221,7 +222,7 @@ def get_today_label():
 
 def get_phase_wk():
     from datetime import date
-    start, end = date(2026, 4, 27), date(2026, 5, 24)
+    start, end = date(2026, 4, 27), date(2026, 5, 18)
     today   = date.today()
     total   = (end - start).days
     elapsed = max(0, min((today - start).days, total))
@@ -569,7 +570,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
 .wm-pct{{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#000;margin-top:3px}}
 .wm-right{{padding:10px 16px 6px;display:flex;flex-direction:column;justify-content:center}}
 .wm-bar{{display:flex;height:24px;border:1.5px solid #000;overflow:hidden;margin-bottom:3px}}
-.wm-fill{{height:100%}}
+.wm-fill{{height:100%;display:block}}
 .wm-remain{{flex:1;height:100%}}
 .wm-scale{{display:flex;justify-content:space-between}}
 .wm-tick{{display:flex;flex-direction:column;align-items:center;gap:1px}}
@@ -705,7 +706,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
   </div>
   <div class="wm-right">
     <div class="wm-bar">
-      <svg viewBox="0 0 400 24" width="{wm_pct}%" height="24" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="24" fill="#000"/></svg>
+      <svg class="wm-fill" viewBox="0 0 400 24" width="{wm_pct}%" height="100%" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><rect width="400" height="24" fill="#000"/></svg>
       <svg class="wm-remain" viewBox="0 0 100 24" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#000" stroke-width="1.5"/></pattern></defs><rect width="100" height="24" fill="url(#hatch)"/></svg>
     </div>
     <div class="wm-scale">{wm_ticks_html}</div>
