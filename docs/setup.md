@@ -25,3 +25,5 @@ PY`
 ## Notes
 
 - Railway is no longer preferred because the free trial becomes paid. Use the NAS + Cloudflare Tunnel path in `docs/nas-cloudflare-deploy.md`.
+- Current NAS local endpoint: `http://192.168.5.3:18080`.
+- Current NAS health checks: `http://192.168.5.3:18080/health` and `http://192.168.5.3:18080/plan-health`.

@@ -65,3 +65,22 @@ Open questions / next steps:
 - Install/run the compose bundle on the UGREEN NAS.
 - Create a Cloudflare Tunnel and set its public hostname service to `http://strava-dashboard:8080`.
 - Update the TRMNL Training Dashboard polling URL to the tunnel hostname plus `/trmnl`.
+
+## 2026-05-20 - Codex
+
+Summary:
+- Deployed `trmnl-strava` in the UGREEN NAS Docker app using a GitHub build context.
+- Exposed the dashboard locally on NAS port `18080`.
+- Confirmed the NAS-hosted app returns upcoming workouts.
+
+Files touched:
+- `docs/agent-log.md`
+
+Verification:
+- `curl http://192.168.5.3:18080/health` returned 200 with `plan_rows_loaded: 35`.
+- `curl http://192.168.5.3:18080/plan-health` returned 11 upcoming rows through 2026-05-30.
+- `curl http://192.168.5.3:18080/trmnl` returned JSON markup containing three upcoming workout cards.
+
+Open questions / next steps:
+- Cloudflare dashboard requires user login and human verification before creating the tunnel.
+- After Cloudflare login, create a tunnel public hostname pointed to the NAS app and update TRMNL's polling URL.
