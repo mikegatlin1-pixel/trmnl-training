@@ -1,5 +1,6 @@
 from flask import Flask, Response
 import requests, os, json, math, re
+from pathlib import Path
 
 app = Flask(__name__)
 
@@ -9,6 +10,171 @@ REFRESH_TOKEN  = os.environ.get("STRAVA_REFRESH_TOKEN")
 WEATHER_LAT    = os.environ.get("WEATHER_LAT", "34.85")
 WEATHER_LON    = os.environ.get("WEATHER_LON", "-82.39")
 WEEKLY_GOAL_MI = float(os.environ.get("WEEKLY_GOAL_MI", "20"))
+TRAINING_PLAN_MD = os.environ.get(
+    "TRAINING_PLAN_MD",
+    "~/Desktop/TRMNL Dashboards/Strava Training/Workouts/training-plan.md"
+)
+RUNNING_COACH_DIR = os.environ.get(
+    "RUNNING_COACH_DIR",
+    "~/Library/Mobile Documents/com~apple~CloudDocs/RunningCoach"
+)
+
+import functools, time as _time
+
+# ── Google Sheets plan loader ─────────────────────────────────────────────────
+
+_plan_cache = {"data": None, "ts": 0}
+_PLAN_TTL   = 300  # re-fetch every 5 min
+
+def load_plan_from_sheets():
+    """Fetch plan rows from Google Sheet. Returns None if not configured."""
+    creds_json = os.environ.get("GOOGLE_CREDS_JSON")
+    sheet_id   = os.environ.get("GOOGLE_SHEET_ID")
+    if not creds_json or not sheet_id:
+        return None
+    try:
+        import json, gspread
+        from google.oauth2.service_account import Credentials
+        scopes  = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+        creds   = Credentials.from_service_account_info(json.loads(creds_json), scopes=scopes)
+        client  = gspread.authorize(creds)
+        rows    = client.open_by_key(sheet_id).sheet1.get_all_records()
+        plan    = []
+        for r in rows:
+            if not r.get("Date"):
+                continue
+            plan.append({
+                "iso":    str(r["Date"]).strip(),
+                "type":   str(r["Type"]).strip().lower(),
+                "title":  str(r["Title"]).strip(),
+                "detail": str(r["Detail"]).strip(),
+                "dur":    str(r["Duration"]).strip(),
+                "hr":     str(r.get("HR","")).strip().lower() in ("true","yes","1"),
+            })
+        return plan or None
+    except Exception as e:
+        print(f"[sheets] error: {e}")
+        return None
+
+def load_plan_from_markdown():
+    """Load rows from a local markdown file. Returns None when empty/missing."""
+    path = Path(TRAINING_PLAN_MD).expanduser()
+    if not path.exists():
+        return None
+
+    plan = []
+    line_re = re.compile(
+        r"^\s*-\s*(\d{4}-\d{2}-\d{2})\s*\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)\|\s*([^|]+)(?:\|\s*([^|]+))?\s*$"
+    )
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            match = line_re.match(line)
+            if not match:
+                continue
+            plan.append({
+                "iso": match.group(1).strip(),
+                "type": match.group(2).strip().lower(),
+                "title": match.group(3).strip(),
+                "detail": match.group(4).strip(),
+                "dur": match.group(5).strip(),
+                "hr": (match.group(6) or "").strip().lower() in ("hr", "true", "yes", "1"),
+            })
+        return sorted(plan, key=lambda row: row["iso"]) or None
+    except Exception as e:
+        print(f"[markdown-plan] error: {e}")
+        return None
+
+def infer_workout_type(title, detail=""):
+    text = f"{title} {detail}".lower()
+    if "strength" in text or "deadlift" in text or "squat" in text or "press" in text:
+        return "strength"
+    if "rest" in text or "off" in text:
+        return "rest"
+    if "walk" in text and "run" not in text:
+        return "rest"
+    if "social" in text or "upstate" in text or "group" in text:
+        return "social"
+    if "run" in text or "aerobic" in text or "trail" in text:
+        return "run"
+    return "rest"
+
+def infer_duration(title, detail=""):
+    text = f"{title} {detail}"
+    ranges = re.findall(r"(\d+)\s*-\s*(\d+)\s*min", text, flags=re.I)
+    if ranges:
+        return f"{ranges[0][1]}m"
+    minutes = re.findall(r"(\d+)\s*min", text, flags=re.I)
+    if minutes:
+        return f"{minutes[0]}m"
+    return "--"
+
+def load_plan_from_running_coach():
+    """Load weekly plans from RunningCoach/logs/plans/week_YYYY-WNN.md."""
+    root = Path(RUNNING_COACH_DIR).expanduser()
+    plans_dir = root / "logs" / "plans"
+    if not plans_dir.exists():
+        return None
+
+    rows = []
+    day_re = re.compile(r"^##\s+\w+\s+(\d{1,2})/(\d{1,2})\s+[-–—]\s+(.+?)\s*$")
+    year_re = re.compile(r"week_(\d{4})-W\d+\.md$", re.I)
+
+    try:
+        for path in sorted(plans_dir.glob("week_*.md"))[-6:]:
+            year_match = year_re.search(path.name)
+            if not year_match:
+                continue
+            year = int(year_match.group(1))
+            current = None
+            details = []
+
+            def flush_current():
+                if not current:
+                    return
+                detail = " ".join(details).strip()
+                detail = re.sub(r"\s+", " ", detail)
+                title = current["title"]
+                wtype = infer_workout_type(title, detail)
+                rows.append({
+                    "iso": current["iso"],
+                    "type": wtype,
+                    "title": title,
+                    "detail": detail[:130] if detail else title,
+                    "dur": infer_duration(title, detail),
+                    "hr": "hr cap" in f"{title} {detail}".lower(),
+                })
+
+            for raw in path.read_text(encoding="utf-8").splitlines():
+                match = day_re.match(raw)
+                if match:
+                    flush_current()
+                    month = int(match.group(1))
+                    day = int(match.group(2))
+                    current = {
+                        "iso": f"{year}-{month:02d}-{day:02d}",
+                        "title": match.group(3).strip(),
+                    }
+                    details = []
+                    continue
+                if current and raw.strip() and not raw.startswith("#") and not raw.startswith("-"):
+                    details.append(raw.strip())
+            flush_current()
+
+        return sorted(rows, key=lambda row: row["iso"]) or None
+    except Exception as e:
+        print(f"[running-coach-plan] error: {e}")
+        return None
+
+def get_plan():
+    now = _time.time()
+    if _plan_cache["data"] is None or now - _plan_cache["ts"] > _PLAN_TTL:
+        fresh = load_plan_from_running_coach() or load_plan_from_markdown() or load_plan_from_sheets()
+        if fresh is not None:
+            _plan_cache["data"] = fresh
+            _plan_cache["ts"]   = now
+    return _plan_cache["data"] if _plan_cache["data"] is not None else PLAN
+
+# ── Hardcoded fallback plan ───────────────────────────────────────────────────
 
 PLAN = [
   {"iso":"2026-04-27","type":"run",     "title":"Recovery Run",         "detail":"30 min · nasal breathing","dur":"30m","hr":True},
@@ -25,14 +191,27 @@ PLAN = [
   {"iso":"2026-05-08","type":"rest",    "title":"Rest & Review",        "detail":"Full rest · prep for long run","dur":"—","hr":False},
   {"iso":"2026-05-09","type":"run",     "title":"Long Run",             "detail":"60-90 min easy · ankle warm-up","dur":"90m","hr":True},
   {"iso":"2026-05-10","type":"strength","title":"Full Body A",           "detail":"Squat · OHP · Row · Sandbag","dur":"60m","hr":False},
-  {"iso":"2026-05-11","type":"run",     "title":"Recovery Run",         "detail":"30 min · nasal breathing","dur":"30m","hr":True},
-  {"iso":"2026-05-12","type":"social",  "title":"Social Run",           "detail":"Upstate RC · Open HR · push if you feel good","dur":"~45m","hr":False},
-  {"iso":"2026-05-13","type":"strength","title":"Strength B",            "detail":"Deadlift Focus · 5-10 min ankle warm-up first","dur":"60m","hr":False},
-  {"iso":"2026-05-14","type":"run",     "title":"Base Run",             "detail":"30 min strict cap · parenting duties · 138 bpm limit","dur":"30m","hr":True},
-  {"iso":"2026-05-15","type":"rest",    "title":"Rest Day",             "detail":"Full recovery · review the week's stats","dur":"—","hr":False},
-  {"iso":"2026-05-16","type":"run",     "title":"Long Run",             "detail":"60-90 min · 10 min ankle/knee warm-up · 138 bpm limit","dur":"90m","hr":True},
-  {"iso":"2026-05-17","type":"strength","title":"Strength A",            "detail":"Squat Focus · 5-10 min ankle warm-up first","dur":"60m","hr":False},
-  {"iso":"2026-05-18","type":"run",     "title":"Recovery Run",         "detail":"30 min · 138 bpm limit · nasal breathing","dur":"30m","hr":True},
+  {"iso":"2026-05-11","type":"run",     "title":"Completed: Indoor Run <138 HR", "detail":"Completed session from bridge week.","dur":"—","hr":True},
+  {"iso":"2026-05-12","type":"social",  "title":"Completed: North Lake out and back", "detail":"Completed session from bridge week.","dur":"—","hr":False},
+  {"iso":"2026-05-13","type":"rest",    "title":"Recovery / no prescribed training", "detail":"Recovery day from bridge week.","dur":"—","hr":False},
+  {"iso":"2026-05-14","type":"rest",    "title":"Rest", "detail":"Blood donation day. No training.","dur":"—","hr":False},
+  {"iso":"2026-05-15","type":"run",     "title":"Easy run", "detail":"25-35 min, RPE 3-4, HR cap 145. Keep it relaxed; this is a rhythm run, not a test.","dur":"35m","hr":True},
+  {"iso":"2026-05-16","type":"rest",    "title":"Off or easy walk", "detail":"Optional 20-30 min walk only.","dur":"30m","hr":False},
+  {"iso":"2026-05-17","type":"run",     "title":"Easy aerobic run", "detail":"40-55 min, RPE 3-4, HR cap 145-150. Road, trail, or Assault Runner.","dur":"55m","hr":True},
+  {"iso":"2026-05-18","type":"strength","title":"Strength A", "detail":"Upper + trunk + lower patterning. 45-55 min, moderate only.","dur":"55m","hr":False},
+  {"iso":"2026-05-19","type":"social",  "title":"Upstate RC trail run anchor", "detail":"Open terrain, controlled effort. Target 35-50 min, RPE 5-7, avoid racing climbs.","dur":"50m","hr":False},
+  {"iso":"2026-05-20","type":"rest",    "title":"Rest or recovery walk", "detail":"Default rest if Tuesday felt hard. Optional 20 min recovery walk.","dur":"20m","hr":False},
+  {"iso":"2026-05-21","type":"run",     "title":"Easy run", "detail":"25-35 min, RPE 3-4, HR cap 140-145. Assault Runner is fine; ignore pace.","dur":"35m","hr":True},
+  {"iso":"2026-05-22","type":"strength","title":"Strength B", "detail":"Lower technique + posterior chain. 40-50 min, RPE 6-7, no grinders.","dur":"50m","hr":False},
+  {"iso":"2026-05-23","type":"run",     "title":"Long easy run", "detail":"55-70 min, ideally rolling trail or road hills. RPE 3-4. Cap at 55 if flat.","dur":"70m","hr":False},
+  {"iso":"2026-05-24","type":"rest",    "title":"Off or very easy", "detail":"Optional 20-30 min very easy only if the week feels smooth.","dur":"30m","hr":False},
+  {"iso":"2026-05-25","type":"strength","title":"Strength A", "detail":"Upper + trunk + lower patterning, RPE 6-7.","dur":"55m","hr":False},
+  {"iso":"2026-05-26","type":"social",  "title":"Upstate RC trail run anchor", "detail":"40-55 min, RPE 5-7. Run with the group, avoid racing climbs.","dur":"55m","hr":False},
+  {"iso":"2026-05-27","type":"rest",    "title":"Rest or recovery walk", "detail":"Default rest if Tuesday felt hard or legs are sore.","dur":"30m","hr":False},
+  {"iso":"2026-05-28","type":"run",     "title":"Easy run", "detail":"30-40 min, RPE 3-4, HR cap 145. Optional relaxed strides if fresh.","dur":"40m","hr":True},
+  {"iso":"2026-05-29","type":"strength","title":"Strength B", "detail":"Lower technique + posterior chain. 40-50 min, RPE 6-7, no grinders.","dur":"50m","hr":False},
+  {"iso":"2026-05-30","type":"run",     "title":"Long easy run", "detail":"60-75 min rolling trail or road hills. Keep HR mostly below 150.","dur":"75m","hr":True},
+  {"iso":"2026-05-31","type":"rest",    "title":"Off or very easy", "detail":"Optional 20-30 min very easy if the week felt smooth.","dur":"30m","hr":False},
 ]
 
 COACH_TIPS = {
@@ -262,7 +441,7 @@ def get_upcoming(today_iso, n=3):
     days_s   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
     months_s = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
     result = []
-    for d in PLAN:
+    for d in get_plan():
         if d["iso"] > today_iso:
             dt  = date.fromisoformat(d["iso"])
             lbl = f"{days_s[dt.weekday()].upper()} &bull; {months_s[dt.month-1].upper()} {dt.day}"
@@ -363,6 +542,27 @@ def trmnl():
 def dashboard():
     return Response(dashboard_html(), mimetype="text/html")
 
+@app.route("/plan-health")
+def plan_health():
+    from datetime import date, timedelta
+    plan = get_plan()
+    today = date.today()
+    horizon = today + timedelta(days=10)
+    upcoming = [
+        row for row in plan
+        if today.isoformat() <= row.get("iso", "") <= horizon.isoformat()
+    ]
+    payload = {
+        "ok": bool(upcoming),
+        "today": today.isoformat(),
+        "horizon": horizon.isoformat(),
+        "plan_rows_loaded": len(plan),
+        "upcoming_rows": len(upcoming),
+        "running_coach_dir": str(Path(RUNNING_COACH_DIR).expanduser()),
+        "items": upcoming[:10],
+    }
+    return Response(json.dumps(payload, indent=2), mimetype="application/json")
+
 def dashboard_html():
     today_iso   = get_today_iso()
     today_label = get_today_label()
@@ -370,7 +570,7 @@ def dashboard_html():
     week_days   = get_week_days()
 
     # Today's plan
-    today_plan = next((d for d in PLAN if d["iso"] == today_iso), None)
+    today_plan = next((d for d in get_plan() if d["iso"] == today_iso), None)
     if today_plan:
         t_type, t_title, t_detail = today_plan["type"], today_plan["title"], today_plan["detail"]
         t_dur, t_hr = today_plan["dur"], today_plan["hr"]
