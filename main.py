@@ -542,6 +542,15 @@ def trmnl():
 def dashboard():
     return Response(dashboard_html(), mimetype="text/html")
 
+@app.route("/health")
+def health():
+    payload = {
+        "ok": True,
+        "service": "trmnl-strava-dashboard",
+        "plan_rows_loaded": len(get_plan()),
+    }
+    return Response(json.dumps(payload), mimetype="application/json")
+
 @app.route("/plan-health")
 def plan_health():
     from datetime import date, timedelta

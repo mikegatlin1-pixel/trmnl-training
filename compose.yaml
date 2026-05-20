@@ -1,0 +1,34 @@
+services:
+  strava-dashboard:
+    build: .
+    image: trmnl-strava-dashboard:latest
+    container_name: trmnl-strava-dashboard
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "8080"
+      RUNNING_COACH_DIR: /data/running-coach
+      TRAINING_PLAN_MD: /data/strava-training/training-plan.md
+    ports:
+      - "${STRAVA_DASHBOARD_BIND:-127.0.0.1:8080}:8080"
+    volumes:
+      - "${RUNNING_COACH_HOST_DIR:-./data/running-coach}:/data/running-coach:ro"
+      - "${STRAVA_WORKOUTS_HOST_DIR:-./data/workouts}:/data/strava-training:ro"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=4).read()"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: trmnl-strava-cloudflared
+    restart: unless-stopped
+    depends_on:
+      strava-dashboard:
+        condition: service_healthy
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    profiles:
+      - tunnel
