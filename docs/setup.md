@@ -8,7 +8,7 @@ Document how to run, test, build, deploy, or operate this project.
 - Test app routes: `python - <<'PY'
 import main
 c = main.app.test_client()
-for p in ["/health", "/plan-health", "/trmnl"]:
+for p in ["/health", "/plan-health", "/activity-health", "/strava-health", "/trmnl"]:
     r = c.get(p)
     print(p, r.status_code, r.content_type, len(r.data))
 PY`
@@ -27,3 +27,6 @@ PY`
 - Railway is no longer preferred because the free trial becomes paid. Use the NAS + Cloudflare Tunnel path in `docs/nas-cloudflare-deploy.md`.
 - Current NAS local endpoint: `http://192.168.5.3:18080`.
 - Current NAS health checks: `http://192.168.5.3:18080/health` and `http://192.168.5.3:18080/plan-health`.
+- Use `/strava-health` for explicit Strava API diagnostics. The route refreshes OAuth and reads Strava API status, so do not call it as a high-frequency uptime check.
+- Use `/activity-health` to verify the effective activity source. When Strava is inactive, it should report `source = healthfit/apple-health` and show the latest HealthFit/Apple Health run.
+- HealthFit source: `${RUNNING_COACH_DIR}/data/healthfit/workouts_summary.csv`. Apple Health backup: `${RUNNING_COACH_DIR}/data/health/workouts_detailed.csv`.

@@ -1,5 +1,6 @@
 from flask import Flask, Response
-import requests, os, json, math, re
+import csv, requests, os, json, math, re
+from datetime import datetime
 from pathlib import Path
 
 app = Flask(__name__)
@@ -17,6 +18,14 @@ TRAINING_PLAN_MD = os.environ.get(
 RUNNING_COACH_DIR = os.environ.get(
     "RUNNING_COACH_DIR",
     "~/Library/Mobile Documents/com~apple~CloudDocs/RunningCoach"
+)
+HEALTHFIT_SUMMARY_CSV = os.environ.get(
+    "HEALTHFIT_SUMMARY_CSV",
+    str(Path(RUNNING_COACH_DIR).expanduser() / "data" / "healthfit" / "workouts_summary.csv")
+)
+APPLE_HEALTH_WORKOUTS_CSV = os.environ.get(
+    "APPLE_HEALTH_WORKOUTS_CSV",
+    str(Path(RUNNING_COACH_DIR).expanduser() / "data" / "health" / "workouts_detailed.csv")
 )
 
 import functools, time as _time
@@ -307,6 +316,167 @@ def workout_icon(wtype, w=22):
 
 # ── Strava ────────────────────────────────────────────────────────────────────
 
+def parse_float(value, default=0.0):
+    try:
+        if value in (None, ""):
+            return default
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+def parse_activity_datetime(value):
+    if not value:
+        return datetime.min
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return datetime.min
+
+def health_type_to_strava_type(value):
+    text = str(value or "").lower()
+    if "run" in text or "running" in text:
+        return "Run"
+    if "walk" in text:
+        return "Walk"
+    if "hiking" in text:
+        return "Hike"
+    if "cycling" in text:
+        return "Ride"
+    if "strength" in text:
+        return "WeightTraining"
+    return "Workout"
+
+def healthfit_activity(row):
+    distance_mi = parse_float(row.get("distance_mi"))
+    duration_min = parse_float(row.get("duration_min"))
+    elevation_ft = parse_float(row.get("elevation_ft"))
+    name_type = row.get("type") or "Workout"
+    return {
+        "id": row.get("file") or row.get("start_time"),
+        "name": f"{name_type} · HealthFit",
+        "type": health_type_to_strava_type(name_type),
+        "sport_type": health_type_to_strava_type(name_type),
+        "distance": distance_mi * 1609.344,
+        "moving_time": int(round(duration_min * 60)),
+        "elapsed_time": int(round(parse_float(row.get("elapsed_min"), duration_min) * 60)),
+        "total_elevation_gain": elevation_ft / 3.28084 if elevation_ft else 0,
+        "average_heartrate": parse_float(row.get("avg_hr")) or None,
+        "max_heartrate": parse_float(row.get("max_hr")) or None,
+        "start_date_local": row.get("start_time") or row.get("date"),
+        "source": "healthfit",
+    }
+
+def apple_health_activity(row):
+    distance_mi = parse_float(row.get("distance_mi"))
+    duration_min = parse_float(row.get("duration_min"))
+    elevation_ft = parse_float(row.get("elevation_ft"))
+    name_type = row.get("type") or "Workout"
+    return {
+        "id": row.get("source_ids") or row.get("start_time"),
+        "name": f"{name_type} · Apple Health",
+        "type": health_type_to_strava_type(name_type),
+        "sport_type": health_type_to_strava_type(name_type),
+        "distance": distance_mi * 1609.344,
+        "moving_time": int(round(duration_min * 60)),
+        "elapsed_time": int(round(duration_min * 60)),
+        "total_elevation_gain": elevation_ft / 3.28084 if elevation_ft else 0,
+        "average_heartrate": parse_float(row.get("avg_hr")) or None,
+        "max_heartrate": parse_float(row.get("max_hr")) or None,
+        "start_date_local": row.get("start_time") or row.get("date"),
+        "source": row.get("source") or "apple_health",
+    }
+
+def read_csv_rows(path):
+    csv_path = Path(path).expanduser()
+    if not csv_path.exists():
+        return []
+    with csv_path.open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+def load_local_health_activities():
+    activities = []
+    for row in read_csv_rows(HEALTHFIT_SUMMARY_CSV):
+        activities.append(healthfit_activity(row))
+    for row in read_csv_rows(APPLE_HEALTH_WORKOUTS_CSV):
+        activities.append(apple_health_activity(row))
+
+    deduped = {}
+    source_rank = {"healthfit": 3, "apple_health_ahe_rest": 2, "apple_health_ahe": 1}
+    for activity in activities:
+        start = activity.get("start_date_local", "")
+        day_minute = start[:16]
+        distance_bucket = round(activity.get("distance", 0) / 100)
+        key = (day_minute, activity.get("type"), distance_bucket)
+        current = deduped.get(key)
+        if current is None or source_rank.get(activity.get("source"), 0) > source_rank.get(current.get("source"), 0):
+            deduped[key] = activity
+
+    return sorted(
+        deduped.values(),
+        key=lambda activity: parse_activity_datetime(activity.get("start_date_local")),
+        reverse=True,
+    )
+
+def build_local_health_stats(activities):
+    current_year = str(datetime.now().year)
+    runs = [
+        activity for activity in activities
+        if activity.get("type") == "Run"
+        and activity.get("start_date_local", "").startswith(current_year)
+        and activity.get("distance", 0) > 100
+    ]
+    return {
+        "ytd_run_totals": {
+            "distance": sum(activity.get("distance", 0) for activity in runs),
+            "count": len(runs),
+            "moving_time": sum(activity.get("moving_time", 0) for activity in runs),
+            "elevation_gain": sum(activity.get("total_elevation_gain", 0) for activity in runs),
+        }
+    }
+
+def get_local_health_data():
+    activities = load_local_health_activities()
+    if not activities:
+        return None, None, None, None
+    return (
+        {"id": "local-health", "source": "healthfit/apple-health"},
+        build_local_health_stats(activities),
+        activities[:20],
+        None,
+    )
+
+def probe_activity_source():
+    athlete, stats, acts, token = get_strava_data()
+    runs = [
+        activity for activity in (acts or [])
+        if isinstance(activity, dict)
+        and activity.get("type") == "Run"
+        and activity.get("distance", 0) > 100
+    ]
+    latest = runs[0] if runs else None
+    payload = {
+        "ok": bool(runs),
+        "source": (athlete or {}).get("source", "strava" if token else "unknown"),
+        "activity_count": len(acts or []),
+        "run_count": len(runs),
+        "ytd_run_totals": (stats or {}).get("ytd_run_totals", {}),
+        "healthfit_summary_csv": str(Path(HEALTHFIT_SUMMARY_CSV).expanduser()),
+        "apple_health_workouts_csv": str(Path(APPLE_HEALTH_WORKOUTS_CSV).expanduser()),
+    }
+    if latest:
+        payload["latest_run"] = {
+            "start_date_local": latest.get("start_date_local"),
+            "name": latest.get("name"),
+            "source": latest.get("source", "strava"),
+            "distance_miles": round(latest.get("distance", 0) / 1609.344, 2),
+            "moving_time_seconds": latest.get("moving_time"),
+            "pace_min_per_mile": round(
+                latest.get("moving_time", 0) / 60 / (latest.get("distance", 0) / 1609.344),
+                2,
+            ) if latest.get("distance", 0) > 0 else None,
+        }
+    return payload
+
 def get_access_token():
     r = requests.post("https://www.strava.com/oauth/token", data={
         "client_id": CLIENT_ID, "client_secret": CLIENT_SECRET,
@@ -318,12 +488,19 @@ def get_strava_data():
     try:
         token = get_access_token()
         h = {"Authorization": f"Bearer {token}"}
-        athlete = requests.get("https://www.strava.com/api/v3/athlete", headers=h).json()
-        stats   = requests.get(f"https://www.strava.com/api/v3/athletes/{athlete['id']}/stats", headers=h).json()
-        acts    = requests.get("https://www.strava.com/api/v3/athlete/activities?per_page=20", headers=h).json()
+        athlete_response = requests.get("https://www.strava.com/api/v3/athlete", headers=h, timeout=10)
+        if athlete_response.status_code != 200:
+            return get_local_health_data()
+        athlete = athlete_response.json()
+        stats_response = requests.get(f"https://www.strava.com/api/v3/athletes/{athlete['id']}/stats", headers=h, timeout=10)
+        acts_response = requests.get("https://www.strava.com/api/v3/athlete/activities?per_page=20", headers=h, timeout=10)
+        if stats_response.status_code != 200 or acts_response.status_code != 200:
+            return get_local_health_data()
+        stats   = stats_response.json()
+        acts    = acts_response.json()
         return athlete, stats, acts, token
     except:
-        return None, None, None, None
+        return get_local_health_data()
 
 def get_activity_streams(act_id, token):
     try:
@@ -337,6 +514,111 @@ def get_activity_streams(act_id, token):
         return d.get("altitude", {}).get("data", []), d.get("distance", {}).get("data", [])
     except:
         return [], []
+
+def _strava_error_payload(response):
+    try:
+        body = response.json()
+    except Exception:
+        return {"message": response.text[:160]}
+    return {
+        "message": body.get("message"),
+        "errors": [
+            {
+                "resource": err.get("resource"),
+                "field": err.get("field"),
+                "code": err.get("code"),
+            }
+            for err in body.get("errors", [])
+            if isinstance(err, dict)
+        ],
+    }
+
+def probe_strava_api():
+    if not CLIENT_ID or not CLIENT_SECRET or not REFRESH_TOKEN:
+        return {
+            "ok": False,
+            "stage": "configuration",
+            "message": "Missing Strava OAuth environment variables",
+        }
+
+    try:
+        token_response = requests.post(
+            "https://www.strava.com/oauth/token",
+            data={
+                "client_id": CLIENT_ID,
+                "client_secret": CLIENT_SECRET,
+                "refresh_token": REFRESH_TOKEN,
+                "grant_type": "refresh_token",
+            },
+            timeout=10,
+        )
+    except Exception as exc:
+        return {"ok": False, "stage": "token", "message": str(exc)}
+
+    if token_response.status_code != 200:
+        return {
+            "ok": False,
+            "stage": "token",
+            "status_code": token_response.status_code,
+            **_strava_error_payload(token_response),
+        }
+
+    token_body = token_response.json()
+    token = token_body.get("access_token")
+    headers = {"Authorization": f"Bearer {token}"}
+    scope = token_body.get("scope")
+
+    checks = [
+        ("athlete", "https://www.strava.com/api/v3/athlete"),
+        ("activities", "https://www.strava.com/api/v3/athlete/activities?per_page=10"),
+    ]
+    result = {"ok": True, "scope": scope, "checks": []}
+
+    for stage, url in checks:
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+        except Exception as exc:
+            return {"ok": False, "stage": stage, "scope": scope, "message": str(exc)}
+
+        result["checks"].append({
+            "stage": stage,
+            "status_code": response.status_code,
+            "rate_limit": response.headers.get("X-RateLimit-Limit"),
+            "rate_usage": response.headers.get("X-RateLimit-Usage"),
+            "read_rate_limit": response.headers.get("X-ReadRateLimit-Limit"),
+            "read_rate_usage": response.headers.get("X-ReadRateLimit-Usage"),
+        })
+
+        if response.status_code != 200:
+            return {
+                "ok": False,
+                "stage": stage,
+                "scope": scope,
+                "status_code": response.status_code,
+                **_strava_error_payload(response),
+                "checks": result["checks"],
+            }
+
+        if stage == "activities":
+            activities = response.json()
+            runs = [
+                activity for activity in activities
+                if isinstance(activity, dict)
+                and activity.get("type") == "Run"
+                and activity.get("distance", 0) > 100
+            ]
+            result["activity_count"] = len(activities) if isinstance(activities, list) else 0
+            result["run_count"] = len(runs)
+            if runs:
+                latest = runs[0]
+                result["latest_run"] = {
+                    "start_date_local": latest.get("start_date_local"),
+                    "distance_miles": round(latest.get("distance", 0) / 1609.344, 2),
+                    "moving_time_seconds": latest.get("moving_time"),
+                    "sport_type": latest.get("sport_type"),
+                }
+
+    return result
 
 # ── Weather ───────────────────────────────────────────────────────────────────
 
@@ -548,8 +830,18 @@ def health():
         "ok": True,
         "service": "trmnl-strava-dashboard",
         "plan_rows_loaded": len(get_plan()),
+        "strava_health_endpoint": "/strava-health",
+        "activity_health_endpoint": "/activity-health",
     }
     return Response(json.dumps(payload), mimetype="application/json")
+
+@app.route("/strava-health")
+def strava_health():
+    return Response(json.dumps(probe_strava_api(), indent=2), mimetype="application/json")
+
+@app.route("/activity-health")
+def activity_health():
+    return Response(json.dumps(probe_activity_source(), indent=2), mimetype="application/json")
 
 @app.route("/plan-health")
 def plan_health():
