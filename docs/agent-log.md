@@ -2,6 +2,26 @@
 
 Append one entry whenever an AI harness makes meaningful changes.
 
+## 2026-07-19 - Hermes Agent
+
+Summary:
+- Standardized the user-facing product as Running Dashboard / Training Dashboard.
+- Changed the app's production activity selector to load HealthFit/Apple Health directly instead of attempting the paid Strava API first; retained the old API function only for explicit diagnostics.
+- Preserved legacy filesystem, NAS, route, and hostname identifiers to avoid risky filename churn.
+
+Files touched:
+- `main.py`, `tests/test_activity_source.py`, `PROJECT_STATE.md`
+- `docs/decisions.md`, `docs/agent-log.md`
+
+Verification:
+- Local test passed and Python compilation succeeded.
+- Live NAS `/activity-health` reports `source = healthfit/apple-health` and the Jul 7 Apple Health run.
+- Live `/plan-health` reports `ok = true`, 42 loaded rows, and 7 upcoming W30 rows.
+- Live `/trmnl` is nonblank and contains no user-facing `Strava` text.
+
+Open questions / next steps:
+- Source is ready, but the NAS container was not rebuilt because the SSH user lacks Docker/sudo permission. The currently deployed app already falls back to local health successfully; deploy the direct-local selector during the next authorized NAS rebuild.
+
 ## YYYY-MM-DD - Harness / model
 
 Summary:
@@ -157,3 +177,38 @@ Verification:
 Open questions / next steps:
 - Rebuild/restart the NAS `trmnl-strava-dashboard` container from the updated repo; SSH user lacks Docker socket permission.
 - Optionally route `/activity-health` and `/strava-health` through the shared Tailscale Funnel path map for public diagnostics.
+
+## 2026-07-01 - Codex
+
+Summary:
+- Completed the NAS rebuild after Mike entered the sudo password locally.
+- Verified the live dashboard now uses the HealthFit/Apple Health fallback over LAN and through the Tailscale Funnel.
+
+Verification:
+- LAN `/health` exposes `/activity-health`; LAN `/activity-health` reports `source: healthfit/apple-health`, 20 activities, 11 runs, and latest run `2026-06-30T17:15:07-04:00`, `2.96 mi`.
+- LAN `/trmnl` and public Funnel `/trmnl` include `HealthFit` and `Outdoor Running`, and do not include "No recent run".
+- Public Funnel `/health` is current. Public `/activity-health` is not currently routed to the dashboard because the shared Funnel path map sends unmatched paths to Endurain.
+
+Open questions / next steps:
+- Optionally route `/activity-health` and `/strava-health` through the shared Tailscale Funnel path map for public diagnostics.
+
+## 2026-07-02 - Codex
+
+Summary:
+- Morning watchdog checked the NAS LAN endpoint and Tailscale Funnel endpoint.
+- Service health was reachable on both paths, `/trmnl` returned nonblank markup, and `/plan-health` reported current upcoming workouts.
+
+Files touched:
+- `PROJECT_STATE.md`
+- `../../PROJECT_STATE.md`
+- `docs/agent-log.md`
+- `../../docs/agent-log.md`
+
+Verification:
+- `curl`/urllib against LAN and Funnel `/health` returned 200 with `ok = true`.
+- `curl`/urllib against LAN and Funnel `/plan-health` returned `plan_rows_loaded = 42` and `upcoming_rows = 4`.
+- `curl`/urllib against LAN and Funnel `/trmnl` returned nonblank markup containing HealthFit and upcoming workout content.
+- Local `RUNNING_COACH_DIR="$HOME/Library/Mobile Documents/com~apple~CloudDocs/RunningCoach" ./.venv/bin/python check_running_coach_plan.py` loaded 42 rows and 4 upcoming rows through 2026-07-12.
+
+Open questions / next steps:
+- Keep monitoring the NAS-mounted RunningCoach data so upcoming workouts remain nonzero.

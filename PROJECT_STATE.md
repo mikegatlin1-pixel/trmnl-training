@@ -10,7 +10,8 @@ Active/supporting app implementation with local plan loaders, Strava/weather ren
 
 ## Recent Changes
 
-- 2026-07-01: Added HealthFit/Apple Health activity fallback so the dashboard can keep working without Strava Premium/API reactivation. `get_strava_data()` now tries Strava first and falls back to local normalized CSVs when Strava reads fail. Added `/activity-health` to show the effective source and latest run. Local verification used HealthFit's June 30 FIT export and showed source `local-health`, latest run `2.96 mi`; NAS data volume has the required CSVs, but live container still needs rebuild/restart.
+- 2026-07-02: Morning watchdog confirmed live LAN and Tailscale Funnel `/plan-health` are healthy with `plan_rows_loaded = 42` and `upcoming_rows = 4`; `/trmnl` is nonblank and includes HealthFit content plus upcoming workouts.
+- 2026-07-01: Added HealthFit/Apple Health activity fallback so the dashboard can keep working without Strava Premium/API reactivation. `get_strava_data()` now tries Strava first and falls back to local normalized CSVs when Strava reads fail. Added `/activity-health` to show the effective source and latest run. Local verification used HealthFit's June 30 FIT export and showed source `local-health`, latest run `2.96 mi`; NAS container was rebuilt from GitHub and live LAN/Funnel `/trmnl` now renders the latest HealthFit run.
 - 2026-07-01: Incident check for missing June 30 run found Strava OAuth refresh still works, but Strava API reads return HTTP 403 with `Application.Status = Inactive`. Added a sanitized `/strava-health` route for on-demand diagnosis without logging tokens. Strava's June 1 API update email says existing Standard Tier developers require a Strava subscription effective June 30, 2026, so reactivation is account-side in Strava API Settings.
 - 2026-06-30: Morning watchdog confirmed the NAS/Funnel service is reachable and `/trmnl` returns nonblank markup, but `/plan-health` reported `upcoming_rows = 0` through 2026-07-10 even though `plan_rows_loaded = 35`. The local iCloud RunningCoach W27 file exists and local `.venv` verification loads 6 upcoming rows, so the NAS-mounted RunningCoach plan data needs sync/restart attention.
 - 2026-06-22: Morning watchdog confirmed the NAS/Funnel service is reachable and `/trmnl` returns nonblank markup, but `/plan-health` reported `upcoming_rows = 0` through 2026-07-02 even though `plan_rows_loaded = 28`. The NAS-mounted RunningCoach plan data needs current upcoming rows.
@@ -19,8 +20,7 @@ Active/supporting app implementation with local plan loaders, Strava/weather ren
 
 ## Next Likely Action
 
-- Sync current RunningCoach plan rows from the local iCloud source to the NAS-mounted `/data/running-coach` copy so `/plan-health` has upcoming workouts again.
-- Rebuild/restart the NAS container from the updated repo so the live TRMNL endpoint uses HealthFit/Apple Health fallback.
+- Monitor the first few TRMNL refreshes through the Tailscale Funnel URL.
 
 ## Watchouts
 

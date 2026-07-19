@@ -17,7 +17,7 @@ TRAINING_PLAN_MD = os.environ.get(
 )
 RUNNING_COACH_DIR = os.environ.get(
     "RUNNING_COACH_DIR",
-    "~/Library/Mobile Documents/com~apple~CloudDocs/RunningCoach"
+    "~/Projects/Active/RunningCoach"
 )
 HEALTHFIT_SUMMARY_CSV = os.environ.get(
     "HEALTHFIT_SUMMARY_CSV",
@@ -26,6 +26,10 @@ HEALTHFIT_SUMMARY_CSV = os.environ.get(
 APPLE_HEALTH_WORKOUTS_CSV = os.environ.get(
     "APPLE_HEALTH_WORKOUTS_CSV",
     str(Path(RUNNING_COACH_DIR).expanduser() / "data" / "health" / "workouts_detailed.csv")
+)
+APPLE_HEALTH_VO2MAX_CSV = os.environ.get(
+    "APPLE_HEALTH_VO2MAX_CSV",
+    str(Path(RUNNING_COACH_DIR).expanduser() / "data" / "health" / "vo2max.csv")
 )
 
 import functools, time as _time
@@ -116,6 +120,44 @@ def infer_duration(title, detail=""):
     if minutes:
         return f"{minutes[0]}m"
     return "--"
+
+def parse_plan_metadata(text):
+    """Extract the evidence contract from a RunningCoach weekly plan."""
+    fields = {
+        "Phase": "phase",
+        "Focus": "focus",
+        "Data confidence": "data_confidence",
+        "Evidence cutoff": "evidence_cutoff",
+        "Fresh": "fresh",
+        "Stale or missing": "stale_or_missing",
+        "Planning rule": "planning_rule",
+    }
+    metadata = {}
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        if ":" not in line:
+            continue
+        label, value = line.split(":", 1)
+        key = fields.get(label.strip())
+        if key:
+            metadata[key] = value.strip()
+    return metadata
+
+def load_plan_metadata(plans_dir=None):
+    """Read evidence metadata from the latest RunningCoach weekly plan."""
+    if plans_dir is None:
+        plans_dir = Path(RUNNING_COACH_DIR).expanduser() / "logs" / "plans"
+    plans_dir = Path(plans_dir)
+    plans = sorted(plans_dir.glob("week_*.md")) if plans_dir.exists() else []
+    if not plans:
+        return {}
+    try:
+        return parse_plan_metadata(plans[-1].read_text(encoding="utf-8"))
+    except OSError as exc:
+        print(f"[plan-metadata] error: {exc}")
+        return {}
+
 
 def load_plan_from_running_coach():
     """Load weekly plans from RunningCoach/logs/plans/week_YYYY-WNN.md."""
@@ -445,8 +487,37 @@ def get_local_health_data():
         None,
     )
 
+
+def get_activity_data():
+    """Return the dashboard's authoritative local HealthFit/Apple Health data."""
+    return get_local_health_data()
+
+
+def get_apple_health_vo2(path=None):
+    """Return the latest measured Apple Health VO2max; never infer it from pace."""
+    path = Path(path or APPLE_HEALTH_VO2MAX_CSV).expanduser()
+    if not path.exists():
+        return None
+    try:
+        with path.open(newline="", encoding="utf-8") as handle:
+            rows = [
+                row for row in csv.DictReader(handle)
+                if row.get("date") and row.get("vo2max_ml_kg_min")
+            ]
+        if not rows:
+            return None
+        latest = max(rows, key=lambda row: row["date"])
+        return {
+            "value": round(float(latest["vo2max_ml_kg_min"]), 1),
+            "date": latest["date"],
+            "source": "Apple Health",
+        }
+    except (OSError, ValueError):
+        return None
+
+
 def probe_activity_source():
-    athlete, stats, acts, token = get_strava_data()
+    athlete, stats, acts, token = get_activity_data()
     runs = [
         activity for activity in (acts or [])
         if isinstance(activity, dict)
@@ -689,6 +760,13 @@ def get_phase_wk():
     elapsed = max(0, min((today - start).days, total))
     return min(4, math.ceil(elapsed / 7)) if elapsed > 0 else 1
 
+def header_status(metadata, fallback_phase_week):
+    confidence = str(metadata.get("data_confidence") or "").strip().upper()
+    phase = str(metadata.get("phase") or "").strip().upper()
+    if confidence:
+        return f"{confidence} CONFIDENCE" + (f" · {phase}" if phase else "")
+    return f"WEEK {fallback_phase_week} / 4"
+
 def get_week_days():
     from datetime import date, timedelta
     today  = date.today()
@@ -860,6 +938,7 @@ def plan_health():
         "plan_rows_loaded": len(plan),
         "upcoming_rows": len(upcoming),
         "running_coach_dir": str(Path(RUNNING_COACH_DIR).expanduser()),
+        "plan_metadata": load_plan_metadata(),
         "items": upcoming[:10],
     }
     return Response(json.dumps(payload, indent=2), mimetype="application/json")
@@ -868,6 +947,8 @@ def dashboard_html():
     today_iso   = get_today_iso()
     today_label = get_today_label()
     phase_wk    = get_phase_wk()
+    plan_meta   = load_plan_metadata()
+    hdr_status  = header_status(plan_meta, phase_wk)
     week_days   = get_week_days()
 
     # Today's plan
@@ -896,8 +977,11 @@ def dashboard_html():
     tip_data    = COACH_TIPS.get(t_type, COACH_TIPS["rest"])
     coach_tip, focus_title, focus_sub = tip_data
 
-    # Strava
-    athlete, stats, acts, token = get_strava_data()
+    # Authoritative local activity feed: HealthFit + Apple Health/AHE.
+    athlete, stats, acts, token = get_activity_data()
+    vo2_record = get_apple_health_vo2()
+    vo2 = vo2_record["value"] if vo2_record else "—"
+    vo2_sub = f"Apple Health · {vo2_record['date']}" if vo2_record else "Apple Health unavailable"
 
     if stats and isinstance(acts, list) and acts:
         ytd      = stats.get("ytd_run_totals", {})
@@ -909,16 +993,13 @@ def dashboard_html():
         if runs:
             avg_pace_s = sum(r["moving_time"] / r["distance"] * 1609.34 for r in runs) / len(runs)
             ytd_pace   = s_to_pace(avg_pace_s)
-            r5         = runs[:5]
-            avg_mps    = sum(r["distance"] / r["moving_time"] for r in r5) / len(r5)
-            vo2        = round(min(65, max(30, avg_mps * 60 * 0.2 + 3.5)), 1)
         else:
-            ytd_pace = "—"; vo2 = 0
+            ytd_pace = "—"
         last_run = next((a for a in acts if isinstance(a, dict) and a.get("type") == "Run" and a.get("distance", 0) > 100), None)
         week_mi  = get_week_mileage(acts, week_days)
     else:
         ytd_mi, ytd_cnt, ytd_hr, ytd_ft, ytd_pace = "—", "—", "—", "—", "—"
-        vo2 = 0; last_run = None; week_mi = 0.0
+        last_run = None; week_mi = 0.0
 
     wm_pct      = min(100, round(week_mi / WEEKLY_GOAL_MI * 100)) if WEEKLY_GOAL_MI > 0 else 0
     goal_int    = int(WEEKLY_GOAL_MI)
@@ -1128,7 +1209,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
   {hdr_bg}
   <div class="hdr-title">Training Snapshot</div>
   <div class="hdr-date">{today_label}</div>
-  <div class="hdr-week">Week {phase_wk} / 4</div>
+  <div class="hdr-week">{hdr_status}</div>
 </div>
 
 <div class="main">
@@ -1241,7 +1322,7 @@ svg{{display:inline-block;vertical-align:middle;flex-shrink:0}}
   <div class="yt"><div class="yt-lbl">Time YTD</div><div class="yt-val">{ytd_hr} hr</div><div class="yt-sub">moving time</div></div>
   <div class="yt"><div class="yt-lbl">Avg Pace</div><div class="yt-val">{ytd_pace}</div><div class="yt-sub">min / mile</div></div>
   <div class="yt"><div class="yt-lbl">Elev Gain YTD</div><div class="yt-val">{ytd_ft} ft</div><div class="yt-sub">year to date</div></div>
-  <div class="yt"><div class="yt-lbl">VO2max Est.</div><div class="yt-val">{vo2}</div><div class="yt-sub">mL/kg/min</div></div>
+  <div class="yt"><div class="yt-lbl">VO2max</div><div class="yt-val">{vo2}</div><div class="yt-sub">{vo2_sub}</div></div>
 </div>
 
 </div>
