@@ -2,6 +2,22 @@
 
 Append one entry whenever an AI harness makes meaningful changes.
 
+## 2026-07-19 - Hermes Agent (evidence contract)
+
+Summary:
+- Parsed RunningCoach's weekly Data confidence / Evidence cutoff / Fresh / Stale metadata.
+- Added metadata to `/plan-health` and replaced the stale hardcoded `Week 4 / 4` header with the current confidence and phase.
+- Removed the pace-derived VO₂max estimate; the dashboard now uses the latest measured Apple Health `vo2max.csv` value and date or reports unavailable.
+- Pushed the tested source to GitHub `main` for the NAS compose build.
+
+Verification:
+- Six tests pass; `main.py` compiles.
+- Local render contains `LOW CONFIDENCE`, Apple Health VO₂max `42.5`, no `VO2max Est.`, and no user-facing Strava text.
+- NAS plan data remains healthy with 42 rows and 7 upcoming W30 workouts.
+
+Open questions / next steps:
+- Rebuild the NAS compose service from GitHub `main`. SSH user is in the NAS admin group but lacks Docker-socket access, and noninteractive sudo correctly refused without a password.
+
 ## 2026-07-19 - Hermes Agent
 
 Summary:
